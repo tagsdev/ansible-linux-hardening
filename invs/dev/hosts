@@ -2,6 +2,7 @@
 10.157.112.14
 
 [gssc-dev:vars]
+host_key_checking = false
 ansible_connection=ssh
 ansible_user=root
 ansible_ssh_pass=Therealdeal1
