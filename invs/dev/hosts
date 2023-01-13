@@ -1,5 +1,5 @@
 [gssc-dev]
-mudccdapp01.my.ds.amkor.com
+10.157.112.14
 
 [gssc-dev:vars]
 ansible_connection=ssh
