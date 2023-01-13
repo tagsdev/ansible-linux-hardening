@@ -1,10 +1,115 @@
-- name: Download and extract files
-  unarchive:
-    src: https://demo-builds.ansible-semaphore.com/build-v{{ semaphore_vars.task_details.incoming_version }}.tar.gz
-    dest: "{{ dest_path }}"
-    remote_src: True
+- name: Ping
+  become: true
+  ansible.builtin.ping:
+
+        #- name: Upgrade all packages
+        #ansible.builtin.yum:
+        #name: '*'
+        #state: latest
 
 
-- name: Print version
-  debug:
-    msg: "Version {{ semaphore_vars.task_details.incoming_version }} is installed."
+- name: Install packages
+  ansible.builtin.yum:
+    name:
+      - git
+      - postfix
+      - s-nail
+      - dnf-automatic
+    state: present
+
+
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+
+
+          #- name: Adding required lines in /etc/postfix/main.cf file
+          #template:
+          #src: main.cf.j2
+          #dest: /etc/postfix/main.cf
+
+
+- name: Add config line to /etc/postfix/main.cf
+  blockinfile:
+    path: /etc/postfix/main.cf
+    block: |
+      myhostname = {{ ansible_hostname }}.my.ds.amkor.com
+      mydomain = my.ds.amkor.com
+      relayhost = mwlnsapp01.my.ds.amkor.com
+
+- name: Change line in /etc/dnf/automatic.conf
+  replace:
+    path: /etc/dnf/automatic.conf
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - { regexp: 'upgrade_type = default', replace: 'upgrade_type = security' }
+    - { regexp: 'apply_updates = no', replace: 'apply_updates = yes' }
+    - { regexp: 'emit_via = stdio', replace: 'emit_via = email' }
+    - { regexp: 'email_from = root@example.com', replace: 'email_from = {{ ansible_hostname }}@my.ds.amkor.com' }
+    - { regexp: 'email_to = root', replace: 'email_to = mark.taguiad@amkor.com' }
+    
+
+
+          #- name: Change line in /etc/dnf/automatic.conf
+          #lineinfile:
+          #dest: /etc/dnf/automatic.conf
+          #regexp: "{{ item.regexp }}"
+          #line: "{{ item.line }}"
+          #loop:
+          #- { regexp: 'upgrade_type', line: 'upgrade_type = security' }
+          #- { regexp: 'apply_updates', line: 'apply_updates = yes' }
+          #- { regexp: 'emit_via', line: 'emit_via = command_email' }
+          #- { regexp: 'email_from', line: 'email_from = {{ ansible_hostname }}.my.ds.amkor.com' }
+          #- { regexp: 'email_to', line: 'email_to = mark.taguiad@amkor.com' }
+
+
+- name: Replace dnf-automatic schedule
+  lineinfile:
+    path: /usr/lib/systemd/system/dnf-automatic.timer
+    regexp: 'OnCalendar'
+    line: 'OnCalendar=Sat *-*-* 00:00:00'
+
+
+- name: Start service postfix
+  ansible.builtin.service:
+    name: postfix
+    state: started
+    enabled: yes
+
+- name: Stop service firewalld, if started
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Start service dnf-automatic
+  ansible.builtin.service:
+    name: dnf-automatic.service
+    state: restarted
+    enabled: yes
+  ignore_errors: yes
+    
+- name: Start service dnf-automatic
+  ansible.builtin.service:
+    name: dnf-automatic.timer
+    state: started
+    enabled: yes
+  ignore_errors: yes
+
+
+
+
+
+
+- name: Add the user mtaguiad
+  ansible.builtin.user:
+    name: "{{ myuser }}"
+    comment: Mark Taguiad
+    group: wheel
+
+- name: Change password
+  ansible.builtin.user:
+    name: "{{ myuser }}"
+    state: present
+    password: "{{ mypassword | password_hash('sha512') }}"

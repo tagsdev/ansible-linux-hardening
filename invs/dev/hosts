@@ -1,2 +1,8 @@
-[website]
-127.0.0.1 ansible_connection=ssh
+[gssc-dev]
+mudccdapp01.my.ds.amkor.com
+
+[gssc-dev:vars]
+ansible_connection=ssh
+ansible_user=root
+ansible_ssh_pass=Therealdeal1
+ansible_sudo_pass=Therealdeal1
